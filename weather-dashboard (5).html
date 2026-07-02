@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Weather Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=DM+Serif+Display&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0f1923;
+    color: #e8edf2;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.2rem;
+    color: #e8edf2;
+    letter-spacing: -0.5px;
+  }
+
+  header p {
+    color: #7a9bb5;
+    font-size: 0.85rem;
+    margin-top: 6px;
+    font-weight: 300;
+  }
+
+  #last-updated {
+    color: #4a7a9b;
+    font-size: 0.78rem;
+    margin-top: 4px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: #162535;
+    border: 1px solid #1e3448;
+    border-radius: 16px;
+    padding: 28px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: #2a5070;
+  }
+
+  .card.dragging {
+    opacity: 0.55;
+    z-index: 50;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+    cursor: grabbing;
+  }
+
+  .card.primary {
+    border-color: #2a6496;
+    background: #162d45;
+  }
+
+  .card.primary::before {
+    content: 'HOME';
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #4a9fd4;
+    background: rgba(74, 159, 212, 0.12);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .city-name {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #c8dae8;
+    margin-bottom: 2px;
+  }
+
+  .state-name {
+    font-size: 0.78rem;
+    color: #4a7a9b;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 20px;
+  }
+
+  .temp-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .temp-main {
+    font-family: 'DM Serif Display', serif;
+    font-size: 3.2rem;
+    color: #e8edf2;
+    line-height: 1;
+  }
+
+  .temp-unit {
+    font-size: 1.1rem;
+    color: #7a9bb5;
+    margin-bottom: 8px;
+  }
+
+  .condition {
+    font-size: 0.9rem;
+    color: #a0bdd0;
+    margin-bottom: 16px;
+    font-weight: 400;
+  }
+
+  .weather-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+  }
+
+  .details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    border-top: 1px solid #1e3448;
+    padding-top: 16px;
+    margin-top: 4px;
+  }
+
+  .detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .detail-label {
+    font-size: 0.7rem;
+    color: #4a7a9b;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+  }
+
+  .detail-value {
+    font-size: 0.92rem;
+    color: #a0bdd0;
+    font-weight: 400;
+  }
+
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    gap: 10px;
+  }
+
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid #1e3448;
+    border-top-color: #4a9fd4;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading p { color: #4a7a9b; font-size: 0.82rem; }
+
+  .error {
+    color: #c0392b;
+    font-size: 0.82rem;
+    padding: 12px 0;
+  }
+
+  .refresh-btn {
+    display: block;
+    margin: 32px auto 0;
+    background: none;
+    border: 1px solid #2a5070;
+    color: #4a9fd4;
+    padding: 10px 28px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .refresh-btn:hover { background: rgba(74, 159, 212, 0.08); }
+
+  .add-city {
+    max-width: 480px;
+    margin: 0 auto 32px;
+    position: relative;
+  }
+
+  .add-city-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .add-city-row input {
+    flex: 1;
+    background: #162535;
+    border: 1px solid #1e3448;
+    color: #e8edf2;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+  }
+
+  .add-city-row input:focus { border-color: #2a6496; }
+  .add-city-row input::placeholder { color: #4a7a9b; }
+
+  .add-city-row button {
+    background: #1e3a52;
+    border: 1px solid #2a5070;
+    color: #4a9fd4;
+    padding: 0 18px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .add-city-row button:hover { background: #244763; }
+
+  .add-city-hint {
+    font-size: 0.74rem;
+    color: #4a7a9b;
+    margin-top: 6px;
+    padding-left: 2px;
+  }
+
+  .search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: #162535;
+    border: 1px solid #1e3448;
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 10;
+  }
+
+  .search-result-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    color: #c8dae8;
+    cursor: pointer;
+    border-bottom: 1px solid #1e3448;
+  }
+
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: #1c3148; }
+
+  .search-result-country {
+    color: #4a7a9b;
+    font-size: 0.78rem;
+  }
+
+  .search-status {
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: #4a7a9b;
+  }
+
+  .card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #1e3448;
+  }
+
+  .drag-handle {
+    color: #7a9bb5;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    padding: 8px 14px 8px 0;
+    line-height: 1;
+  }
+
+  .drag-handle:active { cursor: grabbing; }
+
+  .remove-btn {
+    background: none;
+    border: none;
+    color: #4a7a9b;
+    font-size: 0.72rem;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  .remove-btn:hover { color: #c0392b; }
+
+  /* Compact mobile layout */
+  @media (max-width: 640px) {
+    body { padding: 20px 14px; }
+
+    header { margin-bottom: 24px; }
+    header h1 { font-size: 1.6rem; }
+    header p { font-size: 0.78rem; }
+
+    .grid { gap: 10px; }
+
+    .card {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-template-areas:
+        "icon city"
+        "icon state"
+        "icon temp"
+        "icon condition"
+        "details details"
+        "actions actions";
+      column-gap: 14px;
+      row-gap: 0;
+      padding: 14px 16px;
+      border-radius: 12px;
+    }
+
+    .card:hover { transform: none; }
+
+    .card.primary::before {
+      top: 10px;
+      right: 12px;
+      font-size: 0.6rem;
+      padding: 2px 7px;
+    }
+
+    .weather-icon {
+      grid-area: icon;
+      font-size: 1.9rem;
+      align-self: center;
+      margin-bottom: 0;
+    }
+
+    .city-name { grid-area: city; font-size: 1rem; margin-bottom: 0; }
+    .state-name { grid-area: state; font-size: 0.66rem; margin-bottom: 2px; }
+
+    .temp-row { grid-area: temp; gap: 6px; margin-bottom: 2px; }
+    .temp-main { font-size: 1.8rem; }
+    .temp-unit { font-size: 0.8rem; margin-bottom: 2px; }
+
+    .condition { grid-area: condition; font-size: 0.78rem; margin-bottom: 0; }
+
+    .details {
+      grid-area: details;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      border-top: 1px solid #1e3448;
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+
+    .detail-label { font-size: 0.56rem; }
+    .detail-value { font-size: 0.78rem; }
+
+    .card-actions { grid-area: actions; margin-top: 8px; padding-top: 8px; }
+    .drag-handle { font-size: 1rem; }
+    .remove-btn { font-size: 0.68rem; }
+
+    .add-city { margin-bottom: 22px; }
+
+    .refresh-btn { margin-top: 24px; padding: 9px 22px; font-size: 0.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>My Weather Dashboard</h1>
+  <p>Current conditions across your locations</p>
+  <div id="last-updated"></div>
+</header>
+
+<div class="add-city">
+  <div class="add-city-row">
+    <input type="text" id="city-search-input" placeholder="Add a city…" />
+    <button onclick="searchCity()">Search</button>
+  </div>
+  <p class="add-city-hint">Type the name of a city or town, then pick the correct match from the list below.</p>
+  <p class="add-city-hint">Drag the ⠿ handle on any card to reorder — the first card is always Home.</p>
+  <div class="search-results" id="search-results"></div>
+</div>
+
+<div class="grid" id="grid"></div>
+<button class="refresh-btn" onclick="loadAll()">↻ Refresh Weather</button>
+
+<script>
+const defaultLocations = [
+  { city: "Gilbert",   state: "Arizona",  lat: 33.3528, lon: -111.7890 },
+  { city: "Dubuque",   state: "Iowa",     lat: 42.5006, lon: -90.6646  },
+  { city: "Galena",    state: "Illinois", lat: 42.4161, lon: -90.4290  },
+  { city: "Goodyear",  state: "Arizona",  lat: 33.4353, lon: -112.3576 },
+  { city: "Portland",  state: "Oregon",   lat: 45.5051, lon: -122.6750 },
+  { city: "Roselle",   state: "Illinois", lat: 41.9839, lon: -88.0837  },
+];
+
+function normalizePrimary() {
+  locations.forEach((l, i) => { l.primary = (i === 0); });
+}
+
+function loadLocations() {
+  try {
+    const saved = localStorage.getItem('weatherDashboardLocations');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  return defaultLocations.slice();
+}
+
+function saveLocations() {
+  try {
+    localStorage.setItem('weatherDashboardLocations', JSON.stringify(locations));
+  } catch (e) {}
+}
+
+let locations = loadLocations();
+normalizePrimary();
+
+const US_STATE_ABBR = {
+  al:"alabama", ak:"alaska", az:"arizona", ar:"arkansas", ca:"california", co:"colorado",
+  ct:"connecticut", de:"delaware", fl:"florida", ga:"georgia", hi:"hawaii", id:"idaho",
+  il:"illinois", in:"indiana", ia:"iowa", ks:"kansas", ky:"kentucky", la:"louisiana",
+  me:"maine", md:"maryland", ma:"massachusetts", mi:"michigan", mn:"minnesota",
+  ms:"mississippi", mo:"missouri", mt:"montana", ne:"nebraska", nv:"nevada",
+  nh:"new hampshire", nj:"new jersey", nm:"new mexico", ny:"new york", nc:"north carolina",
+  nd:"north dakota", oh:"ohio", ok:"oklahoma", or:"oregon", pa:"pennsylvania",
+  ri:"rhode island", sc:"south carolina", sd:"south dakota", tn:"tennessee", tx:"texas",
+  ut:"utah", vt:"vermont", va:"virginia", wa:"washington", wv:"west virginia",
+  wi:"wisconsin", wy:"wyoming"
+};
+
+function parseCityQuery(raw) {
+  if (raw.includes(',')) {
+    const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+    let qualifier = parts.slice(1).join(' ').toLowerCase() || null;
+    if (qualifier && US_STATE_ABBR[qualifier]) qualifier = US_STATE_ABBR[qualifier];
+    return { namePart: parts[0], qualifier };
+  }
+
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  if (tokens.length > 1) {
+    const lastTok = tokens[tokens.length - 1].toLowerCase();
+    if (US_STATE_ABBR[lastTok]) {
+      return { namePart: tokens.slice(0, -1).join(' '), qualifier: US_STATE_ABBR[lastTok] };
+    }
+    const stateNames = Object.values(US_STATE_ABBR);
+    for (let n = Math.min(3, tokens.length - 1); n >= 1; n--) {
+      const candidate = tokens.slice(-n).join(' ').toLowerCase();
+      if (stateNames.includes(candidate)) {
+        return { namePart: tokens.slice(0, -n).join(' '), qualifier: candidate };
+      }
+    }
+  }
+
+  return { namePart: raw, qualifier: null };
+}
+
+async function runGeocodeSearch(namePart) {
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(namePart)}&count=10&language=en&format=json`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.results || [];
+}
+
+let lastSearchResults = [];
+
+async function searchCity() {
+  const input = document.getElementById('city-search-input');
+  const rawQuery = input.value.trim();
+  const resultsEl = document.getElementById('search-results');
+  if (!rawQuery) { resultsEl.innerHTML = ''; return; }
+
+  const { namePart, qualifier } = parseCityQuery(rawQuery);
+
+  resultsEl.innerHTML = `<div class="search-status">Searching…</div>`;
+  try {
+    let results = await runGeocodeSearch(namePart);
+
+    if (results.length === 0 && namePart !== rawQuery) {
+      results = await runGeocodeSearch(rawQuery);
+    }
+
+    if (qualifier && results.length > 1) {
+      const filtered = results.filter(r => {
+        const haystack = `${r.admin1 || ''} ${r.country || ''} ${r.country_code || ''}`.toLowerCase();
+        return haystack.includes(qualifier);
+      });
+      if (filtered.length > 0) results = filtered;
+    }
+
+    lastSearchResults = results.slice(0, 6);
+
+    if (lastSearchResults.length === 0) {
+      resultsEl.innerHTML = `<div class="search-status">No matches found. Try just the city name on its own.</div>`;
+      return;
+    }
+
+    resultsEl.innerHTML = lastSearchResults.map((r, i) => `
+      <div class="search-result-item" onclick="addCityFromSearch(${i})">
+        <span>${r.name}${r.admin1 ? ', ' + r.admin1 : ''}</span>
+        <span class="search-result-country">${r.country || ''}</span>
+      </div>
+    `).join('');
+  } catch (e) {
+    resultsEl.innerHTML = `<div class="search-status">Search failed. Try again.</div>`;
+  }
+}
+
+function addCityFromSearch(i) {
+  const r = lastSearchResults[i];
+  if (!r) return;
+  locations.push({
+    city: r.name,
+    state: r.admin1 || r.country || '',
+    lat: r.latitude,
+    lon: r.longitude,
+  });
+  normalizePrimary();
+  saveLocations();
+  document.getElementById('search-results').innerHTML = '';
+  document.getElementById('city-search-input').value = '';
+  loadAll();
+}
+
+function removeLocation(idx) {
+  locations.splice(idx, 1);
+  normalizePrimary();
+  saveLocations();
+  loadAll();
+}
+
+document.getElementById('city-search-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') searchCity();
+});
+
+const weatherCodes = {
+  0:  { label: "Clear Sky",          icon: "☀️" },
+  1:  { label: "Mostly Clear",       icon: "🌤️" },
+  2:  { label: "Partly Cloudy",      icon: "⛅" },
+  3:  { label: "Overcast",           icon: "☁️" },
+  45: { label: "Foggy",              icon: "🌫️" },
+  48: { label: "Icy Fog",            icon: "🌫️" },
+  51: { label: "Light Drizzle",      icon: "🌦️" },
+  53: { label: "Drizzle",            icon: "🌦️" },
+  55: { label: "Heavy Drizzle",      icon: "🌧️" },
+  61: { label: "Light Rain",         icon: "🌧️" },
+  63: { label: "Rain",               icon: "🌧️" },
+  65: { label: "Heavy Rain",         icon: "🌧️" },
+  71: { label: "Light Snow",         icon: "🌨️" },
+  73: { label: "Snow",               icon: "❄️" },
+  75: { label: "Heavy Snow",         icon: "❄️" },
+  80: { label: "Rain Showers",       icon: "🌦️" },
+  81: { label: "Rain Showers",       icon: "🌧️" },
+  82: { label: "Heavy Showers",      icon: "⛈️" },
+  85: { label: "Snow Showers",       icon: "🌨️" },
+  95: { label: "Thunderstorm",       icon: "⛈️" },
+  96: { label: "Thunderstorm + Hail",icon: "⛈️" },
+  99: { label: "Thunderstorm + Hail",icon: "⛈️" },
+};
+
+function getWeatherInfo(code) {
+  return weatherCodes[code] || { label: "Unknown", icon: "🌡️" };
+}
+
+function cToF(c) {
+  return Math.round(c * 9 / 5 + 32);
+}
+
+function kmhToMph(k) {
+  return Math.round(k * 0.621371);
+}
+
+function renderActions(idx) {
+  return `
+    <div class="card-actions">
+      <span class="drag-handle" data-idx="${idx}">⠿</span>
+      <button class="remove-btn" onclick="removeLocation(${idx})">✕ Remove</button>
+    </div>`;
+}
+
+function renderLoading(loc, idx) {
+  return `
+    <div class="card ${loc.primary ? 'primary' : ''}" data-idx="${idx}">
+      <div class="city-name">${loc.city}</div>
+      <div class="state-name">${loc.state}</div>
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Fetching weather…</p>
+      </div>
+      ${renderActions(idx)}
+    </div>`;
+}
+
+function renderCard(loc, data, idx) {
+  const c = data.current;
+  const info = getWeatherInfo(c.weather_code);
+  const tempF = cToF(c.temperature_2m);
+  const feelsF = cToF(c.apparent_temperature);
+  const windMph = kmhToMph(c.wind_speed_10m);
+  const humidity = c.relative_humidity_2m;
+  const precip = Math.round(c.precipitation * 100) / 100;
+
+  return `
+    <div class="card ${loc.primary ? 'primary' : ''}" data-idx="${idx}">
+      <div class="city-name">${loc.city}</div>
+      <div class="state-name">${loc.state}</div>
+      <div class="weather-icon">${info.icon}</div>
+      <div class="temp-row">
+        <span class="temp-main">${tempF}</span>
+        <span class="temp-unit">°F</span>
+      </div>
+      <div class="condition">${info.label}</div>
+      <div class="details">
+        <div class="detail-item">
+          <span class="detail-label">Feels Like</span>
+          <span class="detail-value">${feelsF}°F</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Humidity</span>
+          <span class="detail-value">${humidity}%</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Wind</span>
+          <span class="detail-value">${windMph} mph</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Precipitation</span>
+          <span class="detail-value">${precip} in</span>
+        </div>
+      </div>
+      ${renderActions(idx)}
+    </div>`;
+}
+
+function renderError(loc, idx) {
+  return `
+    <div class="card ${loc.primary ? 'primary' : ''}" data-idx="${idx}">
+      <div class="city-name">${loc.city}</div>
+      <div class="state-name">${loc.state}</div>
+      <div class="error">⚠️ Could not load weather. Check your internet connection and refresh.</div>
+      ${renderActions(idx)}
+    </div>`;
+}
+
+async function fetchWeather(loc) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=inch`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Network response was not ok');
+  return res.json();
+}
+
+// Generation counter: every loadAll() call gets a unique id. If a newer
+// loadAll() starts before an older one finishes, the older one's results
+// are discarded instead of being written into a grid that's moved on.
+let loadGeneration = 0;
+
+async function loadAll() {
+  const myGeneration = ++loadGeneration;
+  const grid = document.getElementById('grid');
+
+  if (locations.length === 0) {
+    grid.innerHTML = `<div class="search-status" style="text-align:center; grid-column: 1 / -1;">No cities added yet — search above to add your first one.</div>`;
+    document.getElementById('last-updated').textContent = '';
+    return;
+  }
+
+  grid.innerHTML = locations.map((loc, i) => renderLoading(loc, i)).join('');
+  document.getElementById('last-updated').textContent = '';
+
+  await Promise.all(locations.map(async (loc, i) => {
+    let html;
+    try {
+      const data = await fetchWeather(loc);
+      if (myGeneration !== loadGeneration) return; // a newer load has started; abandon this one
+      html = renderCard(loc, data, i);
+    } catch (e) {
+      if (myGeneration !== loadGeneration) return;
+      html = renderError(loc, i);
+    }
+    if (myGeneration !== loadGeneration) return;
+    const target = grid.querySelector(`.card[data-idx="${i}"]`);
+    if (target) target.outerHTML = html;
+  }));
+
+  if (myGeneration !== loadGeneration) return;
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  document.getElementById('last-updated').textContent = `Last updated: ${dateStr}, ${timeStr}`;
+}
+
+// --- Drag-to-reorder ---
+// Uses event delegation on the grid so it keeps working across re-renders.
+(function setupDrag() {
+  const grid = document.getElementById('grid');
+  let draggingCard = null;
+  let startY = 0;
+
+  function getCards() {
+    return Array.from(grid.querySelectorAll('.card'));
+  }
+
+  grid.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    const card = handle.closest('.card');
+    if (!card) return;
+    draggingCard = card;
+    startY = e.clientY;
+    card.classList.add('dragging');
+    handle.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  grid.addEventListener('pointermove', (e) => {
+    if (!draggingCard) return;
+    const dy = e.clientY - startY;
+    draggingCard.style.transform = `translateY(${dy}px)`;
+
+    const siblings = getCards().filter(el => el !== draggingCard);
+    for (const sib of siblings) {
+      const rect = sib.getBoundingClientRect();
+      if (e.clientY < rect.top || e.clientY > rect.bottom) continue;
+      const midY = rect.top + rect.height / 2;
+      const all = getCards();
+      const draggingIndex = all.indexOf(draggingCard);
+      const sibIndex = all.indexOf(sib);
+      if (draggingIndex < sibIndex && e.clientY > midY) {
+        grid.insertBefore(draggingCard, sib.nextSibling);
+      } else if (draggingIndex > sibIndex && e.clientY < midY) {
+        grid.insertBefore(draggingCard, sib);
+      } else {
+        continue;
+      }
+      draggingCard.style.transform = '';
+      startY = e.clientY;
+      break;
+    }
+  });
+
+  function endDrag(e) {
+    if (!draggingCard) return;
+    draggingCard.style.transform = '';
+    draggingCard.classList.remove('dragging');
+
+    const newOrder = getCards().map(el => locations[parseInt(el.dataset.idx, 10)]);
+    locations = newOrder;
+    normalizePrimary();
+    saveLocations();
+    draggingCard = null;
+    loadAll();
+  }
+
+  grid.addEventListener('pointerup', endDrag);
+  grid.addEventListener('pointercancel', endDrag);
+})();
+
+loadAll();
+</script>
+</body>
+</html>
